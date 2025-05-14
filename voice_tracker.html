@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Голосовой Трекер Расходов</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin-bottom: 20px;
+      cursor: pointer;
+    }
+    textarea {
+      width: 80%;
+      max-width: 500px;
+      height: 80px;
+      font-size: 16px;
+      margin-bottom: 20px;
+    }
+    #output {
+      width: 80%;
+      max-width: 500px;
+      border: 1px solid #ccc;
+      padding: 10px;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>Голосовой Трекер Расходов</h1>
+  <button id="startButton">🎙️ Говорить</button>
+  <textarea id="spokenText" placeholder="Здесь появится распознанный текст"></textarea>
+  <div id="output"></div>
+
+  <script>
+    const startButton = document.getElementById('startButton');
+    const spokenText = document.getElementById('spokenText');
+    const outputDiv = document.getElementById('output');
+
+    let recognition;
+    if ('webkitSpeechRecognition' in window) {
+      recognition = new webkitSpeechRecognition();
+    } else if ('SpeechRecognition' in window) {
+      recognition = new SpeechRecognition();
+    }
+
+    if (recognition) {
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'ru-RU';
+
+      recognition.onstart = () => {
+        spokenText.value = '';
+        spokenText.placeholder = 'Говорите...';
+        startButton.textContent = '🔴 Говорим...';
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript.trim();
+        spokenText.value = transcript;
+        outputDiv.innerHTML = `✅ Распознано: ${transcript}`;
+        startButton.textContent = '🎙️ Говорить';
+        processSpokenText(transcript);
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Ошибка распознавания:', event.error);
+        outputDiv.innerHTML = `❌ Ошибка распознавания: ${event.error}`;
+        startButton.textContent = '🎙️ Говорить';
+      };
+
+      recognition.onend = () => {
+        startButton.textContent = '🎙️ Говорить';
+      };
+
+      startButton.addEventListener('click', () => {
+        recognition.start();
+      });
+
+      function processSpokenText(text) {
+        const match = text.match(/^(расход|доход)\s+(\S+)\s+(\d+(?:[.,]\d+)?)\s*(?:евро)?\s+(.*)$/i);
+        if (match) {
+          const type = match[1];
+          const category = match[2];
+          const amount = match[3].replace(',', '.');
+          const comment = match[4];
+
+          outputDiv.innerHTML += `\n📌 Обработано:\nТип: ${type}\nКатегория: ${category}\nСумма: ${amount}\nКомментарий: ${comment}`;
+
+          fetch('https://script.google.com/macros/s/AKfycbwZ8H7v5IFTlMHsCWWl4aGfld4RyPVC54IB9FEp4x5odw4XWEoiqPe6r1TmXVVLfjPZog/exec', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: type,
+              category: category,
+              amount: amount,
+              comment: comment
+            })
+          })
+          .then(response => response.json())
+          .then(data => {
+            outputDiv.innerHTML += `\n✅ Отправлено: ${data.message}`;
+          })
+          .catch(error => {
+            outputDiv.innerHTML += `\n❌ Ошибка отправки: ${error}`;
+          });
+
+        } else {
+          outputDiv.innerHTML += `\n⚠️ Формат должен быть: "Тип, категория, сумма евро, комментарий"`;
+        }
+      }
+    } else {
+      outputDiv.textContent = '❌ Ваш браузер не поддерживает Web Speech API. Пожалуйста, используйте Google Chrome.';
+      startButton.disabled = true;
+    }
+  </script>
+</body>
+</html>
