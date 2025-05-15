@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Голосовой Трекер Расходов</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 600px;
+      margin: 2rem auto;
+      padding: 1rem;
+    }
+    button {
+      font-size: 1.2rem;
+      padding: 0.7rem 1.5rem;
+      cursor: pointer;
+    }
+    .result, .parsed, .error {
+      margin-top: 1rem;
+      padding: 0.5rem;
+      border-radius: 4px;
+    }
+    .result { background: #e0f7fa; }
+    .parsed { background: #e8f5e9; }
+    .error { background: #ffebee; color: #c62828; }
+  </style>
+</head>
+<body>
+  <h2>🎙️ Голосовой Трекер Расходов</h2>
+  <button id="start">🎤 Говорить</button>
+  <div class="result" id="transcript"></div>
+  <div class="parsed" id="parsed"></div>
+  <div class="error" id="error"></div>
+
+  <script>
+    const button = document.getElementById('start');
+    const transcriptDiv = document.getElementById('transcript');
+    const parsedDiv = document.getElementById('parsed');
+    const errorDiv = document.getElementById('error');
+
+    const endpoint = 'https://script.google.com/macros/s/AKfycbwZ8H7v5IFTlMHsCWWl4aGfld4RyPVC54IB9FEp4x5odw4XWEoiqPe6r1TmXVVLfjPZog/exec';
+
+    function parseText(text) {
+      const cleanText = text.toLowerCase().replace(/[,]/g, '');
+      const regex = /(\bрасход|\bдоход)\s+(\w+)\s+(\d+)\s*(евро)?\s*(.*)/i;
+      const match = cleanText.match(regex);
+      if (!match) return null;
+
+      return {
+        type: match[1],
+        category: match[2],
+        amount: parseFloat(match[3]),
+        comment: match[5] || '',
+      };
+    }
+
+    function sendData(data) {
+      fetch(endpoint, {
+        method: 'POST',
+        body: JSON.stringify(data),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      .then(res => res.json())
+      .then(json => {
+        parsedDiv.innerHTML += `<br/>✅ Отправлено: ${JSON.stringify(json)}`;
+      })
+      .catch(err => {
+        errorDiv.textContent = '❌ Ошибка отправки: ' + err;
+      });
+    }
+
+    button.onclick = () => {
+      errorDiv.textContent = '';
+      parsedDiv.textContent = '';
+      transcriptDiv.textContent = '🎤 Слушаю...';
+
+      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.lang = 'ru-RU';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onresult = event => {
+        const text = event.results[0][0].transcript;
+        transcriptDiv.textContent = `✅ Распознано: ${text}`;
+        const data = parseText(text);
+
+        if (data) {
+          parsedDiv.innerHTML = `📌 Обработано:<br/>
+            Тип: ${data.type}<br/>
+            Категория: ${data.category}<br/>
+            Сумма: ${data.amount}<br/>
+            Комментарий: ${data.comment}`;
+          sendData(data);
+        } else {
+          errorDiv.textContent = '⚠️ Формат должен быть: "Тип, категория, сумма евро, комментарий"';
+        }
+      };
+
+      recognition.onerror = event => {
+        errorDiv.textContent = `❌ Ошибка распознавания: ${event.error}`;
+      };
+
+      recognition.start();
+    };
+  </script>
+</body>
+</html>
