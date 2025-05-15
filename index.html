@@ -34,77 +34,58 @@
   <div class="error" id="error"></div>
 
   <script>
-    const button = document.getElementById('start');
-    const transcriptDiv = document.getElementById('transcript');
-    const parsedDiv = document.getElementById('parsed');
-    const errorDiv = document.getElementById('error');
+  const speakBtn = document.getElementById('speak-btn');
+  const result = document.getElementById('result');
+  const status = document.getElementById('status');
 
-    const endpoint = 'https://script.google.com/macros/s/AKfycbwZ8H7v5IFTlMHsCWWl4aGfld4RyPVC54IB9FEp4x5odw4XWEoiqPe6r1TmXVVLfjPZog/exec';
+  const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+  recognition.lang = 'ru-RU';
 
-    function parseText(text) {
-      const cleanText = text.toLowerCase().replace(/[,]/g, '');
-      const regex = /(\bрасход|\bдоход)\s+(\w+)\s+(\d+)\s*(евро)?\s*(.*)/i;
-      const match = cleanText.match(regex);
-      if (!match) return null;
+  speakBtn.addEventListener('click', () => {
+    recognition.start();
+  });
 
-      return {
-        type: match[1],
-        category: match[2],
-        amount: parseFloat(match[3]),
-        comment: match[5] || '',
-      };
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript.toLowerCase().trim();
+    result.textContent = `Распознано: ${transcript}`;
+    
+    const parsed = smartParse(transcript);
+
+    if (parsed) {
+      status.innerHTML = `<span style="color: green;">✅ Готово для отправки: ${parsed}</span>`;
+      // тут можно отправлять parsed в Google Таблицу через Make
+    } else {
+      status.innerHTML = `<span style="color: red;">⚠️ Формат должен быть: "Тип, категория, сумма евро, комментарий"</span>`;
+    }
+  };
+
+  recognition.onerror = (event) => {
+    status.innerHTML = `<span style="color: red;">Ошибка: ${event.error}</span>`;
+  };
+
+  // Умная автообработка
+  function smartParse(text) {
+    const words = text.split(' ');
+    let type = '', category = '', amount = '', comment = '';
+
+    // Пытаемся найти число
+    for (let i = 0; i < words.length; i++) {
+      if (!amount && /\d+/.test(words[i])) {
+        amount = words[i].replace(/[^\d]/g, '');
+        type = words[i - 2] || 'расход';
+        category = words[i - 1] || '';
+        comment = words.slice(i + 1).join(' ');
+        break;
+      }
     }
 
-    function sendData(data) {
-      fetch(endpoint, {
-        method: 'POST',
-        body: JSON.stringify(data),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-      .then(res => res.json())
-      .then(json => {
-        parsedDiv.innerHTML += `<br/>✅ Отправлено: ${JSON.stringify(json)}`;
-      })
-      .catch(err => {
-        errorDiv.textContent = '❌ Ошибка отправки: ' + err;
-      });
+    if (type && category && amount) {
+      return `${type}, ${category}, ${amount}, ${comment || '-'}`;
     }
 
-    button.onclick = () => {
-      errorDiv.textContent = '';
-      parsedDiv.textContent = '';
-      transcriptDiv.textContent = '🎤 Слушаю...';
+    return null;
+  }
+</script>
 
-      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-      recognition.lang = 'ru-RU';
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-
-      recognition.onresult = event => {
-        const text = event.results[0][0].transcript;
-        transcriptDiv.textContent = `✅ Распознано: ${text}`;
-        const data = parseText(text);
-
-        if (data) {
-          parsedDiv.innerHTML = `📌 Обработано:<br/>
-            Тип: ${data.type}<br/>
-            Категория: ${data.category}<br/>
-            Сумма: ${data.amount}<br/>
-            Комментарий: ${data.comment}`;
-          sendData(data);
-        } else {
-          errorDiv.textContent = '⚠️ Формат должен быть: "Тип, категория, сумма евро, комментарий"';
-        }
-      };
-
-      recognition.onerror = event => {
-        errorDiv.textContent = `❌ Ошибка распознавания: ${event.error}`;
-      };
-
-      recognition.start();
-    };
-  </script>
 </body>
 </html>
