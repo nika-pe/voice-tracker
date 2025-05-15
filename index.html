@@ -46,18 +46,33 @@
   });
 
   recognition.onresult = (event) => {
-    const transcript = event.results[0][0].transcript.toLowerCase().trim();
-    result.textContent = `Распознано: ${transcript}`;
-    
-    const parsed = smartParse(transcript);
+  const transcript = event.results[0][0].transcript.toLowerCase().trim();
+  result.textContent = `Распознано: ${transcript}`;
 
-    if (parsed) {
-      status.innerHTML = `<span style="color: green;">✅ Готово для отправки: ${parsed}</span>`;
-      // тут можно отправлять parsed в Google Таблицу через Make
-    } else {
-      status.innerHTML = `<span style="color: red;">⚠️ Формат должен быть: "Тип, категория, сумма евро, комментарий"</span>`;
-    }
-  };
+  const parsedString = smartParse(transcript);
+
+  if (parsedString) {
+    status.innerHTML = `<span style="color: green;">✅ Готово для отправки: ${parsedString}</span>`;
+
+    const [type, category, amount, comment] = parsedString.split(',').map(item => item.trim());
+
+    fetch('https://script.google.com/macros/s/AKfycbzST_uLsHbmSTI4E9dAFG9QNNBounEc0gWv2lPzRp7NP3J-ANcHx7-xuDLsY07UYoM8QA/exec', { // Replace with your actual URL
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: type, category: category, amount: amount, comment: comment })
+    })
+    .then(response => response.json())
+    .then(data => {
+      status.innerHTML += `<br><span style="color: blue;">✅ Отправлено: ${data.message}</span>`;
+    })
+    .catch(error => {
+      status.innerHTML += `<br><span style="color: red;">❌ Ошибка отправки: ${error}</span>`;
+    });
+
+  } else {
+    status.innerHTML = `<span style="color: red;">⚠️ Формат должен быть: "Тип, категория, сумма евро, комментарий"</span>`;
+  }
+};
 
   recognition.onerror = (event) => {
     status.innerHTML = `<span style="color: red;">Ошибка: ${event.error}</span>`;
