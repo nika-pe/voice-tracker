@@ -28,14 +28,14 @@
 </head>
 <body>
   <h2>🎙️ Голосовой Трекер Расходов</h2>
-  <button id="start">🎤 Говорить</button>
+  <button id="speak-btn">🎤 Говорить</button>
   <div class="result" id="transcript"></div>
   <div class="parsed" id="parsed"></div>
-  <div class="error" id="error"></div>
+  <div class="error" id="status"></div>
 
   <script>
-  <button id="speak-btn">🎤 Говорить</button>
-  const result = document.getElementById('result');
+  const speakBtn = document.getElementById('speak-btn');
+  const result = document.getElementById('transcript');
   const status = document.getElementById('status');
 
   const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
@@ -56,7 +56,7 @@
 
     const [type, category, amount, comment] = parsedString.split(',').map(item => item.trim());
 
-    fetch('https://script.google.com/macros/s/AKfycbzST_uLsHbmSTI4E9dAFG9QNNBounEc0gWv2lPzRp7NP3J-ANcHx7-xuDLsY07UYoM8QA/exec', { // Replace with your actual URL
+    fetch('https://script.google.com/macros/s/AKfycbzST_uLsHbmSTI4E9dAFG9QNNBounEc0gWv2lPzRp7NP3J-ANcHx7-xuDLsY07UYoM8QA/exec', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: type, category: category, amount: amount, comment: comment })
@@ -72,7 +72,7 @@
   } else {
     status.innerHTML = `<span style="color: red;">⚠️ Формат должен быть: "Тип, категория, сумма евро, комментарий"</span>`;
   }
-};
+  };
 
   recognition.onerror = (event) => {
     status.innerHTML = `<span style="color: red;">Ошибка: ${event.error}</span>`;
@@ -100,7 +100,7 @@
 
     return null;
   }
-</script>
+  </script>
 
 </body>
 </html>
