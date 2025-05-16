@@ -56,7 +56,7 @@
 
     const [type, category, amount, comment] = parsedString.split(',').map(item => item.trim());
 
-    fetch('https://script.google.com/macros/s/AKfycbweQqshzNPhzHMSBBkyr0DLTCnQGtqiTDIrEAUF6JoQMqmnRsuKDzXUeYtPokz9attG/exec', {
+    fetch('https://hook.eu2.make.com/nyqdstl3qiir75l2etxqzr41jdfagfaf', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: type, category: category, amount: amount, comment: comment })
