@@ -34,74 +34,75 @@
   <div class="error" id="status"></div>
 
   <script>
-  const speakBtn = document.getElementById('speak-btn');
-  const result = document.getElementById('transcript');
-  const status = document.getElementById('status');
+    const speakBtn = document.getElementById('speak-btn');
+    const result = document.getElementById('transcript');
+    const status = document.getElementById('status');
 
-  const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-  recognition.lang = 'ru-RU';
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = 'ru-RU';
 
-  speakBtn.addEventListener('click', () => {
-    recognition.start();
-  });
-
-  recognition.onresult = (event) => {
-  const transcript = event.results[0][0].transcript.toLowerCase().trim();
-  result.textContent = `Распознано: ${transcript}`;
-
-  const parsedString = smartParse(transcript);
-
-  if (parsedString) {
-    status.innerHTML = `<span style="color: green;">✅ Готово для отправки: ${parsedString}</span>`;
-
-    const [type, category, amount, comment] = parsedString.split(',').map(item => item.trim());
-
-    fetch('https://hook.eu2.make.com/vyp7mmyr3f9hxhkv9cu2aoxmnlh06uo', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ type: type, category: category, amount: amount, comment: comment })
-})
-
-    .then(response => response.json())
-    .then(data => {
-      status.innerHTML += `<br><span style="color: blue;">✅ Отправлено: ${data.message}</span>`;
-    })
-    .catch(error => {
-      status.innerHTML += `<br><span style="color: red;">❌ Ошибка отправки: ${error}</span>`;
+    speakBtn.addEventListener('click', () => {
+      recognition.start();
     });
 
-  } else {
-    status.innerHTML = `<span style="color: red;">⚠️ Формат должен быть: "Тип, категория, сумма евро, комментарий"</span>`;
-  }
-  };
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript.toLowerCase().trim();
+      result.textContent = `Распознано: ${transcript}`;
 
-  recognition.onerror = (event) => {
-    status.innerHTML = `<span style="color: red;">Ошибка: ${event.error}</span>`;
-  };
+      const parsedString = smartParse(transcript);
 
-  // Умная автообработка
-  function smartParse(text) {
-    const words = text.split(' ');
-    let type = '', category = '', amount = '', comment = '';
+      if (parsedString) {
+        status.innerHTML = `<span style="color: green;">✅ Готово для отправки: ${parsedString}</span>`;
 
-    // Пытаемся найти число
-    for (let i = 0; i < words.length; i++) {
-      if (!amount && /\d+/.test(words[i])) {
-        amount = words[i].replace(/[^\d]/g, '');
-        type = words[i - 2] || 'расход';
-        category = words[i - 1] || '';
-        comment = words.slice(i + 1).join(' ');
-        break;
+        const [type, category, amount, comment] = parsedString.split(',').map(item => item.trim());
+
+        fetch('https://hook.eu2.make.com/vyp7mmyr3f9hxhkv9cu2aoxmnlh06uo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: type,
+            category: category,
+            amount: amount,
+            comment: comment
+          })
+        })
+        .then(response => response.json())
+        .then(data => {
+          status.innerHTML += `<br><span style="color: blue;">✅ Отправлено: ${data.message || 'успешно'}</span>`;
+        })
+        .catch(error => {
+          status.innerHTML += `<br><span style="color: red;">❌ Ошибка отправки: ${error}</span>`;
+        });
+
+      } else {
+        status.innerHTML = `<span style="color: red;">⚠️ Формат должен быть: "Тип, категория, сумма евро, комментарий"</span>`;
       }
-    }
+    };
 
-    if (type && category && amount) {
-      return `${type}, ${category}, ${amount}, ${comment || '-'}`;
-    }
+    recognition.onerror = (event) => {
+      status.innerHTML = `<span style="color: red;">Ошибка: ${event.error}</span>`;
+    };
 
-    return null;
-  }
+    function smartParse(text) {
+      const words = text.split(' ');
+      let type = '', category = '', amount = '', comment = '';
+
+      for (let i = 0; i < words.length; i++) {
+        if (!amount && /\d+/.test(words[i])) {
+          amount = words[i].replace(/[^\d]/g, '');
+          type = words[i - 2] || 'расход';
+          category = words[i - 1] || '';
+          comment = words.slice(i + 1).join(' ');
+          break;
+        }
+      }
+
+      if (type && category && amount) {
+        return `${type}, ${category}, ${amount}, ${comment || '-'}`;
+      }
+
+      return null;
+    }
   </script>
-
 </body>
 </html>
